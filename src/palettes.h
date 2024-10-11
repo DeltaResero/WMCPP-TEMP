@@ -1,4 +1,4 @@
-void Palette(int palette, int iter, int *r, int *g, int *b)
+void Palette(int paletteIndex, int iterations, int *red, int *green, int *blue)
 {
   int (*p)[256][3];  // Pointer to the selected palette
 
@@ -674,7 +674,8 @@ void Palette(int palette, int iter, int *r, int *g, int *b)
   };
 
   switch (paletteIndex)
-  {         // Select color palette
+  {
+    // Select color palette
     case 0: p = &Blue;           break;
     case 1: p = &Gold;           break;
     case 2: p = &Green;          break;

@@ -19,6 +19,7 @@ static GXRModeObj *rmode;
 
 // Clean exit globals
 int reboot = 0, switchoff = 0;
+int *field = NULL;
 
 void reset()
 {
@@ -70,7 +71,11 @@ void cleanup()
 {
   printf("Freeing memory...\n");
   // Free field on exit
-  free(field);
+  if (field != NULL)
+  {
+    free(field);
+    field = NULL;
+  }
 }
 
 int main(int argc, char **argv)
@@ -84,7 +89,7 @@ int main(int argc, char **argv)
 
   const int screenW = rmode->fbWidth;
   const int screenH = rmode->xfbHeight;
-  int *field = (int*)malloc(sizeof(int) * screenW * screenH);
+  field = (int*)malloc(sizeof(int) * screenW * screenH);  // Allocate 'field'
 
   // Initialize variables
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
