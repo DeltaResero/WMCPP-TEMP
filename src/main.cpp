@@ -1,29 +1,23 @@
 // main.cpp
-
 #include <iostream>
 #include <cstdlib>
-#include <cstring>
-#include <malloc.h>
 #include <ogcsys.h>
 #include <gccore.h>
 #include <wiiuse/wpad.h>
 #include "palettes.hpp"
 
-// Constants
 const double INITIAL_ZOOM = 0.007;
 const int INITIAL_LIMIT = 200;
 const int CYCLE_OFFSET = 1;
 const int MIN_ITERATION = 1;
-const double MAX_ZOOM_PRECISION = 1e-14;  // We can only go about this far reliably with double precision
+const double MAX_ZOOM_PRECISION = 1e-14;
 
 static u32* xfb[2] = {nullptr, nullptr};
 static GXRModeObj* rmode;
 
-// Clean exit globals
 int reboot = 0, switchoff = 0;
 int* field = nullptr;
 
-// Function declarations
 void reset(u32, void*);
 void poweroff();
 static void init();
@@ -33,7 +27,6 @@ void countevs(int chan, const WPADData* data);
 void cleanup();
 void moving(double& centerX, double& centerY, double& oldX, double& oldY, int mouseX, int mouseY, int screenW, int screenH, double zoom, int& process);
 void zooming(double& centerX, double& centerY, double& oldX, double& oldY, int& mouseX, int& mouseY, int screenW, int screenH, double& zoom, int& process);
-
 
 void reset(u32 resetCode, void* resetData)
 {
@@ -82,7 +75,6 @@ void cleanup()
 {
   std::cout << "Freeing memory...\n";
 
-  // Free field on exit
   if (field != nullptr)
   {
     delete[] field;
@@ -93,7 +85,7 @@ void cleanup()
 int main(int argc, char** argv)
 {
   init();
-  atexit(cleanup);  // Register cleanup to ensure memory is freed
+  atexit(cleanup);
 
   int res;
   u32 type;
@@ -101,17 +93,14 @@ int main(int argc, char** argv)
 
   const int screenW = rmode->fbWidth;
   const int screenH = rmode->xfbHeight;
-  field = new int[screenW * screenH];  // Allocate 'field'
+  field = new int[screenW * screenH];
 
-  // Initialize variables
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
   int mouseX = 0, mouseY = 0;
   int limit = INITIAL_LIMIT, palette = 4;
   double zoom = INITIAL_ZOOM;
   int process = 1, counter = 0, cycle = 0, buffer = 0;
   int cycling = 0;
-
-  double cr, ci, zr1, zr, zi1, zi;
 
   while (true)
   {
@@ -121,11 +110,12 @@ int main(int argc, char** argv)
     {
       for (int h = 20; h < screenH; ++h)
       {
+        double ci = -1.0 * (h - screenH / 2) * zoom - centerY;
+
         for (int w = 0; w < screenW; ++w)
         {
-          cr = (w - screenW / 2) * zoom + centerX;
-          ci = -1.0 * (h - screenH / 2) * zoom - centerY;
-          zr1 = zr = zi1 = zi = 0;
+          double cr = (w - screenW / 2) * zoom + centerX;
+          double zr1 = 0, zr = 0, zi1 = 0, zi = 0;
           int n1 = 0;
 
           while ((zr * zr + zi * zi) < 4 && n1 != limit)
@@ -228,7 +218,7 @@ int main(int argc, char** argv)
 
       if ((wd->btns_h & WPAD_BUTTON_HOME) || reboot)
       {
-        delete[] field;  // Free allocated memory first
+        delete[] field;
         SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
         exit(0);
       }
@@ -260,7 +250,7 @@ void zooming(double& centerX, double& centerY, double& oldX, double& oldY, int& 
 {
   moving(centerX, centerY, oldX, oldY, mouseX, mouseY, screenW, screenH, zoom, process);
   zoom *= 0.35;
-  if (zoom < MAX_ZOOM_PRECISION)  // Limit to 13 decimal places
+  if (zoom < MAX_ZOOM_PRECISION)
   {
     zoom = MAX_ZOOM_PRECISION;
   }
@@ -304,8 +294,6 @@ u32 CvtRGB(int n2, int n1, int limit, int palette)
 
   return (y1 << 24) | (cb << 16) | (y2 << 8) | crx;
 }
-
-
 
 static void init()
 {
