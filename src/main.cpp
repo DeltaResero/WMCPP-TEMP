@@ -1,11 +1,13 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// main.cpp
+
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
 #include <malloc.h>
 #include <ogcsys.h>
 #include <gccore.h>
 #include <wiiuse/wpad.h>
-#include "palettes.h"
+#include "palettes.hpp"
 
 // Constants
 const double INITIAL_ZOOM = 0.007;
@@ -14,14 +16,26 @@ const int CYCLE_OFFSET = 1;
 const int MIN_ITERATION = 1;
 const double MAX_ZOOM_PRECISION = 1e-14;  // We can only go about this far reliably with double precision
 
-static u32 *xfb[2] = {NULL, NULL};
-static GXRModeObj *rmode;
+static u32* xfb[2] = {nullptr, nullptr};
+static GXRModeObj* rmode;
 
 // Clean exit globals
 int reboot = 0, switchoff = 0;
-int *field = NULL;
+int* field = nullptr;
 
-void reset()
+// Function declarations
+void reset(u32, void*);
+void poweroff();
+static void init();
+u32 CvtRGB(int n2, int n1, int limit, int palette);
+void drawdot(void* xfb, GXRModeObj* rmode, float w, float h, float fx, float fy, u32 color);
+void countevs(int chan, const WPADData* data);
+void cleanup();
+void moving(double& centerX, double& centerY, double& oldX, double& oldY, int mouseX, int mouseY, int screenW, int screenH, double zoom, int& process);
+void zooming(double& centerX, double& centerY, double& oldX, double& oldY, int& mouseX, int& mouseY, int screenW, int screenH, double& zoom, int& process);
+
+
+void reset(u32 resetCode, void* resetData)
 {
   reboot = 1;
 }
@@ -31,12 +45,9 @@ void poweroff()
   switchoff = 1;
 }
 
-static void init();
-u32 CvtRGB(int n2, int n1, int limit, int palette);
-
-void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy, u32 color)
+void drawdot(void* xfb, GXRModeObj* rmode, float w, float h, float fx, float fy, u32 color)
 {
-  u32 *fb;
+  u32* fb;
   int px, py;
   int x, y;
   fb = (u32*)xfb;
@@ -61,7 +72,7 @@ void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy,
   }
 }
 
-void countevs(int chan, const WPADData *data)
+void countevs(int chan, const WPADData* data)
 {
   static int evctr = 0;
   evctr++;
@@ -69,27 +80,28 @@ void countevs(int chan, const WPADData *data)
 
 void cleanup()
 {
-  printf("Freeing memory...\n");
+  std::cout << "Freeing memory...\n";
+
   // Free field on exit
-  if (field != NULL)
+  if (field != nullptr)
   {
-    free(field);
-    field = NULL;
+    delete[] field;
+    field = nullptr;
   }
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
   init();
   atexit(cleanup);  // Register cleanup to ensure memory is freed
 
   int res;
   u32 type;
-  WPADData *wd;
+  WPADData* wd = nullptr;
 
   const int screenW = rmode->fbWidth;
   const int screenH = rmode->xfbHeight;
-  field = (int*)malloc(sizeof(int) * screenW * screenH);  // Allocate 'field'
+  field = new int[screenW * screenH];  // Allocate 'field'
 
   // Initialize variables
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
@@ -101,35 +113,15 @@ int main(int argc, char **argv)
 
   double cr, ci, zr1, zr, zi1, zi;
 
-  void moving()
-  {
-    centerX = mouseX * zoom - (screenW / 2) * zoom + oldX;
-    oldX = centerX;
-    centerY = mouseY * zoom - (screenH / 2) * zoom + oldY;
-    oldY = centerY;
-    process = 1;
-  }
-
-  void zooming()
-  {
-    moving();
-    zoom *= 0.35;
-    if (zoom < MAX_ZOOM_PRECISION)  // Limit to 13 decimal places
-    {
-      zoom = MAX_ZOOM_PRECISION;
-    }
-    process = 1;
-  }
-
-  while (1)
+  while (true)
   {
     buffer ^= 1;
 
     if (process == 1)
     {
-      for (int h = 20; h < screenH; h++)
+      for (int h = 20; h < screenH; ++h)
       {
-        for (int w = 0; w < screenW; w++)
+        for (int w = 0; w < screenW; ++w)
         {
           cr = (w - screenW / 2) * zoom + centerX;
           ci = -1.0 * (h - screenH / 2) * zoom - centerY;
@@ -142,7 +134,7 @@ int main(int argc, char **argv)
             zr = (zr1 * zr1) - (zi1 * zi1) + cr;
             zr1 = zr;
             zi1 = zi;
-            n1++;
+            ++n1;
           }
 
           field[w + (screenW * h)] = n1;
@@ -153,19 +145,19 @@ int main(int argc, char **argv)
 
     if (cycling)
     {
-      cycle++;
+      ++cycle;
     }
 
     console_init(xfb[buffer], 20, 20, rmode->fbWidth, 20, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
-    printf(" cX = %.4f cY = %.4f", centerX, -centerY);
-    printf(" zoom = %.2f", INITIAL_ZOOM / zoom);
+    std::cout << " cX = " << centerX << " cY = " << -centerY;
+    std::cout << " zoom = " << INITIAL_ZOOM / zoom;
 
-    for (int h = 20; h < screenH; h++)
+    for (int h = 20; h < screenH; ++h)
     {
-      for (int w = 0; w < screenW; w++)
+      for (int w = 0; w < screenW; ++w)
       {
         int n1 = field[w + screenW * h] + cycle;
-        counter++;
+        ++counter;
 
         if (counter == 2)
         {
@@ -184,19 +176,20 @@ int main(int argc, char **argv)
 
       if (wd->ir.valid)
       {
-        printf(" re = %.4f, im = %.4f", (wd->ir.x - screenW / 2) * zoom + centerX, (screenH / 2 - wd->ir.y) * zoom - centerY);
+        std::cout << " re = " << (wd->ir.x - screenW / 2) * zoom + centerX
+                  << ", im = " << (screenH / 2 - wd->ir.y) * zoom - centerY;
         drawdot(xfb[buffer], rmode, rmode->fbWidth, rmode->xfbHeight, wd->ir.x, wd->ir.y, COLOR_RED);
       }
       else
       {
-        printf(" No Cursor");
+        std::cout << " No Cursor";
       }
 
       if (wd->btns_h & WPAD_BUTTON_A)
       {
         mouseX = wd->ir.x;
         mouseY = wd->ir.y;
-        zooming();
+        zooming(centerX, centerY, oldX, oldY, mouseX, mouseY, screenW, screenH, zoom, process);
       }
 
       if (wd->btns_h & WPAD_BUTTON_B)
@@ -235,7 +228,7 @@ int main(int argc, char **argv)
 
       if ((wd->btns_h & WPAD_BUTTON_HOME) || reboot)
       {
-        free(field);  // Free allocated memory first
+        delete[] field;  // Free allocated memory first
         SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
         exit(0);
       }
@@ -254,6 +247,26 @@ int main(int argc, char **argv)
   return 0;
 }
 
+void moving(double& centerX, double& centerY, double& oldX, double& oldY, int mouseX, int mouseY, int screenW, int screenH, double zoom, int& process)
+{
+  centerX = mouseX * zoom - (screenW / 2) * zoom + oldX;
+  oldX = centerX;
+  centerY = mouseY * zoom - (screenH / 2) * zoom + oldY;
+  oldY = centerY;
+  process = 1;
+}
+
+void zooming(double& centerX, double& centerY, double& oldX, double& oldY, int& mouseX, int& mouseY, int screenW, int screenH, double& zoom, int& process)
+{
+  moving(centerX, centerY, oldX, oldY, mouseX, mouseY, screenW, screenH, zoom, process);
+  zoom *= 0.35;
+  if (zoom < MAX_ZOOM_PRECISION)  // Limit to 13 decimal places
+  {
+    zoom = MAX_ZOOM_PRECISION;
+  }
+  process = 1;
+}
+
 u32 CvtRGB(int n2, int n1, int limit, int palette)
 {
   int y1, cb1, cr1, y2, cb2, cr2, cb, crx, r, g, b;
@@ -266,7 +279,7 @@ u32 CvtRGB(int n2, int n1, int limit, int palette)
   }
   else
   {
-    Palette(palette, n2, &r, &g, &b);
+    Palette(palette, n2, r, g, b);
     y1 = (299 * r + 587 * g + 114 * b) / 1000;
     cb1 = (-16874 * r - 33126 * g + 50000 * b + 12800000) / 100000;
     cr1 = (50000 * r - 41869 * g - 8131 * b + 12800000) / 100000;
@@ -280,7 +293,7 @@ u32 CvtRGB(int n2, int n1, int limit, int palette)
   }
   else
   {
-    Palette(palette, n1, &r, &g, &b);
+    Palette(palette, n1, r, g, b);
     y2 = (299 * r + 587 * g + 114 * b) / 1000;
     cb2 = (-16874 * r - 33126 * g + 50000 * b + 12800000) / 100000;
     cr2 = (50000 * r - 41869 * g - 8131 * b + 12800000) / 100000;
@@ -291,6 +304,8 @@ u32 CvtRGB(int n2, int n1, int limit, int palette)
 
   return (y1 << 24) | (cb << 16) | (y2 << 8) | crx;
 }
+
+
 
 static void init()
 {
@@ -315,8 +330,8 @@ static void init()
   }
 
   VIDEO_Configure(rmode);
-  xfb[0] = (u32*)MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-  xfb[1] = (u32*)MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+  xfb[0] = static_cast<u32*>(MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode)));
+  xfb[1] = static_cast<u32*>(MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode)));
   console_init(xfb[0], 20, 30, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
   VIDEO_ClearFrameBuffer(rmode, xfb[0], COLOR_BLACK);
   VIDEO_ClearFrameBuffer(rmode, xfb[1], COLOR_BLACK);
