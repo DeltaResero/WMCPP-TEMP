@@ -82,6 +82,11 @@ void cleanup()
   }
 }
 
+void clear_field(int* field, int size)
+{
+  std::fill(field, field + size, 0);
+}
+
 int main(int argc, char** argv)
 {
   init();
@@ -108,6 +113,8 @@ int main(int argc, char** argv)
 
     if (process == 1)
     {
+      clear_field(field, screenW * screenH);
+
       for (int h = 20; h < screenH; ++h)
       {
         double ci = -1.0 * (h - screenH / 2) * zoom - centerY;
