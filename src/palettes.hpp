@@ -5,7 +5,7 @@
 
 #include <array>
 
-void Palette(int paletteIndex, int iterations, int &red, int &green, int &blue);
+void Palette(int paletteIndex, int iterations, int &y, int &cb, int &cr);
 
 #endif  // PALETTES_HPP
 
