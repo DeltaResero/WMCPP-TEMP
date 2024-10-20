@@ -9,7 +9,6 @@
 
 const double INITIAL_ZOOM = 0.007;
 const int INITIAL_LIMIT = 200;
-const int CYCLE_OFFSET = 1;
 const int MIN_ITERATION = 1;
 const double MAX_ZOOM_PRECISION = 1e-14;
 
@@ -18,6 +17,7 @@ static GXRModeObj* rmode;
 
 bool reboot = false, switchoff = false;
 int* field = nullptr;
+u32* colorCache = nullptr;
 
 void reset(u32, void*);
 void poweroff();
@@ -81,6 +81,12 @@ void cleanup()
     delete[] field;
     field = nullptr;
   }
+
+  if (colorCache != nullptr)
+  {
+    delete[] colorCache;
+    colorCache = nullptr;
+  }
 }
 
 void clear_field(int* field, int size)
@@ -100,6 +106,7 @@ int main(int argc, char** argv)
   const int screenW = rmode->fbWidth;
   const int screenH = rmode->xfbHeight;
   field = new int[screenW * screenH];
+  colorCache = new u32[screenW * screenH];  // Cache for pixel colors
 
   const int halfScreenW = screenW / 2;
   const int halfScreenH = screenH / 2;
@@ -139,6 +146,7 @@ int main(int argc, char** argv)
           }
 
           field[w + (screenW * h)] = n1;
+          colorCache[w + (screenW * h)] = CvtYUV(n1, n1, limit, palette);  // Cache the colors during calculation
         }
       }
       process = 0;
@@ -164,7 +172,14 @@ int main(int argc, char** argv)
 
         if (counter == 2)
         {
-          xfb[buffer][(w / 2) + (screenW * h / 2)] = CvtYUV(n1, n1, limit, palette);
+          if (cycling)
+          {
+            xfb[buffer][(w / 2) + (screenW * h / 2)] = CvtYUV(n1, n1, limit, palette);
+          }
+          else
+          {
+            xfb[buffer][(w / 2) + (screenW * h / 2)] = colorCache[w + (screenW * h)];
+          }
           counter = 0;
         }
       }
@@ -223,16 +238,19 @@ int main(int argc, char** argv)
       if (wd->btns_d & WPAD_BUTTON_MINUS)
       {
         palette = (palette > 0) ? (palette - 1) : 9;
+        process = 1;
       }
 
       if (wd->btns_d & WPAD_BUTTON_PLUS)
       {
         palette = (palette + 1) % 10;
+        process = 1;
       }
 
       if ((wd->btns_h & WPAD_BUTTON_HOME) || reboot)
       {
         delete[] field;
+        delete[] colorCache;
         SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
         exit(0);
       }
