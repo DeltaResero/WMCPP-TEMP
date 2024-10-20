@@ -15,7 +15,7 @@ const double MAX_ZOOM_PRECISION = 1e-14;
 static u32* xfb[2] = {nullptr, nullptr};
 static GXRModeObj* rmode;
 
-int reboot = 0, switchoff = 0;
+bool reboot = false, switchoff = false;
 int* field = nullptr;
 
 void reset(u32, void*);
@@ -30,12 +30,12 @@ void zooming(double& centerX, double& centerY, double& oldX, double& oldY, int& 
 
 void reset(u32 resetCode, void* resetData)
 {
-  reboot = 1;
+  reboot = true;
 }
 
 void poweroff()
 {
-  switchoff = 1;
+  switchoff = true;
 }
 
 void drawdot(void* xfb, GXRModeObj* rmode, float w, float h, float fx, float fy, u32 color)
@@ -100,12 +100,15 @@ int main(int argc, char** argv)
   const int screenH = rmode->xfbHeight;
   field = new int[screenW * screenH];
 
+  const int halfScreenW = screenW / 2;
+  const int halfScreenH = screenH / 2;
+
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
   int mouseX = 0, mouseY = 0;
   int limit = INITIAL_LIMIT, palette = 4;
   double zoom = INITIAL_ZOOM;
   int process = 1, counter = 0, cycle = 0, buffer = 0;
-  int cycling = 0;
+  bool cycling = false;
 
   while (true)
   {
@@ -117,11 +120,11 @@ int main(int argc, char** argv)
 
       for (int h = 20; h < screenH; ++h)
       {
-        double ci = -1.0 * (h - screenH / 2) * zoom - centerY;
+        double ci = -1.0 * (h - halfScreenH) * zoom - centerY;
 
         for (int w = 0; w < screenW; ++w)
         {
-          double cr = (w - screenW / 2) * zoom + centerX;
+          double cr = (w - halfScreenW) * zoom + centerX;
           double zr1 = 0, zr = 0, zi1 = 0, zi = 0;
           int n1 = 0;
 
@@ -173,8 +176,8 @@ int main(int argc, char** argv)
 
       if (wd->ir.valid)
       {
-        std::cout << " re = " << (wd->ir.x - screenW / 2) * zoom + centerX
-                  << ", im = " << (screenH / 2 - wd->ir.y) * zoom - centerY;
+        std::cout << " re = " << (wd->ir.x - halfScreenW) * zoom + centerX
+                  << ", im = " << (halfScreenH - wd->ir.y) * zoom - centerY;
         drawdot(xfb[buffer], rmode, rmode->fbWidth, rmode->xfbHeight, wd->ir.x, wd->ir.y, COLOR_RED);
       }
       else
