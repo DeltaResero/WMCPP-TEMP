@@ -1,6 +1,7 @@
 // main.cpp
 #include <iostream>
 #include <cstdlib>
+#include <iomanip>
 #include <ogcsys.h>
 #include <gccore.h>
 #include <wiiuse/wpad.h>
@@ -149,7 +150,9 @@ int main(int argc, char** argv)
     }
 
     console_init(xfb[buffer], 20, 20, rmode->fbWidth, 20, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
+    std::cout << std::fixed << std::setprecision(4);
     std::cout << " cX = " << centerX << " cY = " << -centerY;
+    std::cout << std::fixed << std::setprecision(2);
     std::cout << " zoom = " << INITIAL_ZOOM / zoom;
 
     for (int h = 20; h < screenH; ++h)
@@ -176,6 +179,7 @@ int main(int argc, char** argv)
 
       if (wd->ir.valid)
       {
+        std::cout << std::fixed << std::setprecision(4);
         std::cout << " re = " << (wd->ir.x - halfScreenW) * zoom + centerX
                   << ", im = " << (halfScreenH - wd->ir.y) * zoom - centerY;
         drawdot(xfb[buffer], rmode, rmode->fbWidth, rmode->xfbHeight, wd->ir.x, wd->ir.y, COLOR_RED);
