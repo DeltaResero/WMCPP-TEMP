@@ -36,19 +36,22 @@ u32 CvtRGB(int n2, int n1, int limit, int palette);
 
 void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy, u32 color)
 {
-  u32 *fb;
-  fb = (u32*)xfb;
-  int y = fy * rmode->xfbHeight / h;
-  int x = fx * rmode->fbWidth / w / 2;
+  u32 *fb = (u32*)xfb;
+  int y = (int)(fy * rmode->xfbHeight / h);
+  int x = (int)(fx * rmode->fbWidth / w) >> 1;
+  int fbStride = rmode->fbWidth / VI_DISPLAY_PIX_SZ;
 
   for (int py = y - 4; py <= y + 4; ++py)
   {
     if (py < 0 || py >= rmode->xfbHeight) continue;
 
+    int fbWidthHalf = rmode->fbWidth >> 1;
+    int fbOffset = fbStride * py;
+
     for (int px = x - 2; px <= x + 2; ++px)
     {
-      if (px < 0 || px >= rmode->fbWidth / 2) continue;
-      fb[rmode->fbWidth / VI_DISPLAY_PIX_SZ * py + px] = color;
+      if (px < 0 || px >= fbWidthHalf) continue;
+      fb[fbOffset + px] = color;
     }
   }
 }
@@ -82,6 +85,8 @@ int main(int argc, char **argv)
   const int screenH = rmode->xfbHeight;
   field = (int*)malloc(sizeof(int) * screenW * screenH);
 
+  const int screenW2 = screenW >> 1;
+  const int screenH2 = screenH >> 1;
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
   int mouseX = 0, mouseY = 0;
   int limit = INITIAL_LIMIT, palette = 4;
@@ -91,9 +96,9 @@ int main(int argc, char **argv)
 
   void moving()
   {
-    centerX = mouseX * zoom - (screenW / 2) * zoom + oldX;
+    centerX = mouseX * zoom - screenW2 * zoom + oldX;
     oldX = centerX;
-    centerY = mouseY * zoom - (screenH / 2) * zoom + oldY;
+    centerY = mouseY * zoom - screenH2 * zoom + oldY;
     oldY = centerY;
     process = true;
   }
@@ -117,11 +122,12 @@ int main(int argc, char **argv)
     {
       for (int h = 20; h < screenH; ++h)
       {
-        double ci = -1.0 * (h - screenH / 2) * zoom - centerY;
+        int screenWH = screenW * h;
+        double ci = -1.0 * (h - screenH2) * zoom - centerY;
 
         for (int w = 0; w < screenW; ++w)
         {
-          double cr = (w - screenW / 2) * zoom + centerX;
+          double cr = (w - screenW2) * zoom + centerX;
           double zr1 = 0, zr = 0, zi1 = 0, zi = 0;
           int n1 = 0;
           double zrSquared, ziSquared;
@@ -135,7 +141,7 @@ int main(int argc, char **argv)
             ++n1;
           }
 
-          field[w + (screenW * h)] = n1;
+          field[w + screenWH] = n1;
         }
       }
       process = false;
@@ -149,6 +155,7 @@ int main(int argc, char **argv)
 
     for (int h = 20; h < screenH; ++h)
     {
+      int screenWHHalf = (screenW * h) >> 1;
       for (int w = 0; w < screenW; ++w)
       {
         int n1 = field[w + screenW * h] + cycle;
@@ -156,7 +163,7 @@ int main(int argc, char **argv)
 
         if (counter == 2)
         {
-          xfb[buffer][(w / 2) + (screenW * h / 2)] = CvtRGB(n1, n1, limit, palette);
+          xfb[buffer][(w >> 1) + screenWHHalf] = CvtRGB(n1, n1, limit, palette);
           counter = 0;
         }
       }
@@ -171,7 +178,7 @@ int main(int argc, char **argv)
 
       if (wd->ir.valid)
       {
-        printf(" re = %.4f, im = %.4f", (wd->ir.x - screenW / 2) * zoom + centerX, (screenH / 2 - wd->ir.y) * zoom - centerY);
+        printf(" re = %.4f, im = %.4f", (wd->ir.x - screenW2) * zoom + centerX, (screenH2 - wd->ir.y) * zoom - centerY);
         drawdot(xfb[buffer], rmode, rmode->fbWidth, rmode->xfbHeight, wd->ir.x, wd->ir.y, COLOR_RED);
       }
       else
@@ -200,13 +207,13 @@ int main(int argc, char **argv)
 
       if (wd->btns_h & WPAD_BUTTON_2)
       {
-        limit = (limit > MIN_ITERATION) ? (limit / 2) : MIN_ITERATION;
+        limit = (limit > MIN_ITERATION) ? (limit >> 1) : MIN_ITERATION;
         process = true;
       }
 
       if (wd->btns_h & WPAD_BUTTON_1)
       {
-        limit *= 2;
+        limit <<= 1;
         process = true;
       }
 
@@ -222,7 +229,7 @@ int main(int argc, char **argv)
 
       if ((wd->btns_h & WPAD_BUTTON_HOME) || reboot)
       {
-        free(field);  // Free allocated memory first
+        free(field);
         SYS_ResetSystem(SYS_RETURNTOMENU, 0, 0);
         exit(0);
       }
