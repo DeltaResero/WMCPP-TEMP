@@ -18,17 +18,17 @@ static u32 *xfb[2] = {NULL, NULL};
 static GXRModeObj *rmode;
 
 // Clean exit globals
-int reboot = 0, switchoff = 0;
+bool reboot = false, switchoff = false;
 int *field = NULL;
 
 void reset()
 {
-  reboot = 1;
+  reboot = true;
 }
 
 void poweroff()
 {
-  switchoff = 1;
+  switchoff = true;
 }
 
 static void init();
@@ -37,25 +37,17 @@ u32 CvtRGB(int n2, int n1, int limit, int palette);
 void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy, u32 color)
 {
   u32 *fb;
-  int px, py;
-  int x, y;
   fb = (u32*)xfb;
-  y = fy * rmode->xfbHeight / h;
-  x = fx * rmode->fbWidth / w / 2;
+  int y = fy * rmode->xfbHeight / h;
+  int x = fx * rmode->fbWidth / w / 2;
 
-  for (py = y - 4; py <= (y + 4); py++)
+  for (int py = y - 4; py <= y + 4; ++py)
   {
-    if (py < 0 || py >= rmode->xfbHeight)
-    {
-      continue;
-    }
+    if (py < 0 || py >= rmode->xfbHeight) continue;
 
-    for (px = x - 2; px <= (x + 2); px++)
+    for (int px = x - 2; px <= x + 2; ++px)
     {
-      if (px < 0 || px >= rmode->fbWidth / 2)
-      {
-        continue;
-      }
+      if (px < 0 || px >= rmode->fbWidth / 2) continue;
       fb[rmode->fbWidth / VI_DISPLAY_PIX_SZ * py + px] = color;
     }
   }
@@ -64,13 +56,12 @@ void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy,
 void countevs(int chan, const WPADData *data)
 {
   static int evctr = 0;
-  evctr++;
+  ++evctr;
 }
 
 void cleanup()
 {
   printf("Freeing memory...\n");
-  // Free field on exit
   if (field != NULL)
   {
     free(field);
@@ -81,7 +72,7 @@ void cleanup()
 int main(int argc, char **argv)
 {
   init();
-  atexit(cleanup);  // Register cleanup to ensure memory is freed
+  atexit(cleanup);
 
   int res;
   u32 type;
@@ -89,17 +80,14 @@ int main(int argc, char **argv)
 
   const int screenW = rmode->fbWidth;
   const int screenH = rmode->xfbHeight;
-  field = (int*)malloc(sizeof(int) * screenW * screenH);  // Allocate 'field'
+  field = (int*)malloc(sizeof(int) * screenW * screenH);
 
-  // Initialize variables
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
   int mouseX = 0, mouseY = 0;
   int limit = INITIAL_LIMIT, palette = 4;
   double zoom = INITIAL_ZOOM;
-  int process = 1, counter = 0, cycle = 0, buffer = 0;
-  int cycling = 0;
-
-  double cr, ci, zr1, zr, zi1, zi;
+  bool process = true, cycling = false;
+  int counter = 0, cycle = 0, buffer = 0;
 
   void moving()
   {
@@ -107,65 +95,64 @@ int main(int argc, char **argv)
     oldX = centerX;
     centerY = mouseY * zoom - (screenH / 2) * zoom + oldY;
     oldY = centerY;
-    process = 1;
+    process = true;
   }
 
   void zooming()
   {
     moving();
     zoom *= 0.35;
-    if (zoom < MAX_ZOOM_PRECISION)  // Limit to 13 decimal places
+    if (zoom < MAX_ZOOM_PRECISION)
     {
       zoom = MAX_ZOOM_PRECISION;
     }
-    process = 1;
+    process = true;
   }
 
-  while (1)
+  while (true)
   {
     buffer ^= 1;
 
-    if (process == 1)
+    if (process)
     {
-      for (int h = 20; h < screenH; h++)
+      for (int h = 20; h < screenH; ++h)
       {
-        for (int w = 0; w < screenW; w++)
-        {
-          cr = (w - screenW / 2) * zoom + centerX;
-          ci = -1.0 * (h - screenH / 2) * zoom - centerY;
-          zr1 = zr = zi1 = zi = 0;
-          int n1 = 0;
+        double ci = -1.0 * (h - screenH / 2) * zoom - centerY;
 
-          while ((zr * zr + zi * zi) < 4 && n1 != limit)
+        for (int w = 0; w < screenW; ++w)
+        {
+          double cr = (w - screenW / 2) * zoom + centerX;
+          double zr1 = 0, zr = 0, zi1 = 0, zi = 0;
+          int n1 = 0;
+          double zrSquared, ziSquared;
+
+          while ((zrSquared = zr1 * zr1) + (ziSquared = zi1 * zi1) < 4 && n1 != limit)
           {
             zi = 2 * zi1 * zr1 + ci;
-            zr = (zr1 * zr1) - (zi1 * zi1) + cr;
+            zr = zrSquared - ziSquared + cr;
             zr1 = zr;
             zi1 = zi;
-            n1++;
+            ++n1;
           }
 
           field[w + (screenW * h)] = n1;
         }
       }
-      process = 0;
+      process = false;
     }
 
-    if (cycling)
-    {
-      cycle++;
-    }
+    if (cycling) ++cycle;
 
     console_init(xfb[buffer], 20, 20, rmode->fbWidth, 20, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
     printf(" cX = %.4f cY = %.4f", centerX, -centerY);
     printf(" zoom = %.2f", INITIAL_ZOOM / zoom);
 
-    for (int h = 20; h < screenH; h++)
+    for (int h = 20; h < screenH; ++h)
     {
-      for (int w = 0; w < screenW; w++)
+      for (int w = 0; w < screenW; ++w)
       {
         int n1 = field[w + screenW * h] + cycle;
-        counter++;
+        ++counter;
 
         if (counter == 2)
         {
@@ -203,7 +190,7 @@ int main(int argc, char **argv)
       {
         zoom = INITIAL_ZOOM;
         centerX = centerY = oldX = oldY = 0;
-        process = 1;
+        process = true;
       }
 
       if (wd->btns_d & WPAD_BUTTON_DOWN)
@@ -214,13 +201,13 @@ int main(int argc, char **argv)
       if (wd->btns_h & WPAD_BUTTON_2)
       {
         limit = (limit > MIN_ITERATION) ? (limit / 2) : MIN_ITERATION;
-        process = 1;
+        process = true;
       }
 
       if (wd->btns_h & WPAD_BUTTON_1)
       {
         limit *= 2;
-        process = 1;
+        process = true;
       }
 
       if (wd->btns_d & WPAD_BUTTON_MINUS)
