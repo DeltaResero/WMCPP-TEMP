@@ -32,25 +32,31 @@ void poweroff()
 }
 
 static void init();
-u32 CvtRGB(int n2, int n1, int limit, int palette);
+u32 CvtYUV(int n2, int n1, int limit, int palette);
 
 void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy, u32 color)
 {
-  u32 *fb = (u32*)xfb;
+  u32 *fb = (u32 *)xfb;
   int y = (int)(fy * rmode->xfbHeight / h);
   int x = (int)(fx * rmode->fbWidth / w) >> 1;
   int fbStride = rmode->fbWidth / VI_DISPLAY_PIX_SZ;
 
   for (int py = y - 4; py <= y + 4; ++py)
   {
-    if (py < 0 || py >= rmode->xfbHeight) continue;
+    if (py < 0 || py >= rmode->xfbHeight)
+    {
+      continue;
+    }
 
     int fbWidthHalf = rmode->fbWidth >> 1;
     int fbOffset = fbStride * py;
 
     for (int px = x - 2; px <= x + 2; ++px)
     {
-      if (px < 0 || px >= fbWidthHalf) continue;
+      if (px < 0 || px >= fbWidthHalf)
+      {
+        continue;
+      }
       fb[fbOffset + px] = color;
     }
   }
@@ -83,7 +89,7 @@ int main(int argc, char **argv)
 
   const int screenW = rmode->fbWidth;
   const int screenH = rmode->xfbHeight;
-  field = (int*)memalign(32, sizeof(int) * screenW * screenH);
+  field = (int *)memalign(32, sizeof(int) * screenW * screenH);
 
   const int screenW2 = screenW >> 1;
   const int screenH2 = screenH >> 1;
@@ -147,7 +153,10 @@ int main(int argc, char **argv)
       process = false;
     }
 
-    if (cycling) ++cycle;
+    if (cycling)
+    {
+      ++cycle;
+    }
 
     console_init(xfb[buffer], 20, 20, rmode->fbWidth, 20, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
     printf(" cX = %.4f cY = %.4f", centerX, -centerY);
@@ -163,7 +172,7 @@ int main(int argc, char **argv)
 
         if (counter == 2)
         {
-          xfb[buffer][(w >> 1) + screenWHHalf] = CvtRGB(n1, n1, limit, palette);
+          xfb[buffer][(w >> 1) + screenWHHalf] = CvtYUV(n1, n1, limit, palette);
           counter = 0;
         }
       }
@@ -248,41 +257,32 @@ int main(int argc, char **argv)
   return 0;
 }
 
-u32 CvtRGB(int n2, int n1, int limit, int palette)
+u32 CvtYUV(int n2, int n1, int limit, int palette)
 {
-  int y1, cb1, cr1, y2, cb2, cr2, cb, crx, r, g, b;
+  int y1, cb1, cr1, y2, cb2, cr2, cb, crx;
 
   if (n2 == limit)
   {
-    y1 = 0;
-    cb1 = 128;
-    cr1 = 128;
+    y1 = 0; cb1 = 128; cr1 = 128;  // Black in YUV
   }
   else
   {
-    Palette(palette, n2, &r, &g, &b);
-    y1 = (299 * r + 587 * g + 114 * b) / 1000;
-    cb1 = (-16874 * r - 33126 * g + 50000 * b + 12800000) / 100000;
-    cr1 = (50000 * r - 41869 * g - 8131 * b + 12800000) / 100000;
+    Palette(palette, n2, &y1, &cb1, &cr1);
   }
 
   if (n1 == limit)
   {
-    y2 = 0;
-    cb2 = 128;
-    cr2 = 128;
+    y2 = 0; cb2 = 128; cr2 = 128;  // Black in YUV
   }
   else
   {
-    Palette(palette, n1, &r, &g, &b);
-    y2 = (299 * r + 587 * g + 114 * b) / 1000;
-    cb2 = (-16874 * r - 33126 * g + 50000 * b + 12800000) / 100000;
-    cr2 = (50000 * r - 41869 * g - 8131 * b + 12800000) / 100000;
+    Palette(palette, n1, &y2, &cb2, &cr2);
   }
 
-  cb = (cb1 + cb2) >> 1;
+  cb = (cb1 + cb2) >> 1;  // Average chroma values
   crx = (cr1 + cr2) >> 1;
 
+  // Return the packed YUV color (32-bit value)
   return (y1 << 24) | (cb << 16) | (y2 << 8) | crx;
 }
 
@@ -309,8 +309,8 @@ static void init()
   }
 
   VIDEO_Configure(rmode);
-  xfb[0] = (u32*)MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
-  xfb[1] = (u32*)MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+  xfb[0] = (u32 *)MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
+  xfb[1] = (u32 *)MEM_K0_TO_K1(SYS_AllocateFramebuffer(rmode));
   console_init(xfb[0], 20, 30, rmode->fbWidth, rmode->xfbHeight, rmode->fbWidth * VI_DISPLAY_PIX_SZ);
   VIDEO_ClearFrameBuffer(rmode, xfb[0], COLOR_BLACK);
   VIDEO_ClearFrameBuffer(rmode, xfb[1], COLOR_BLACK);
