@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 
   while (true)
   {
-    buffer ^= 1;
+    buffer = !buffer;
 
     if (process)
     {
