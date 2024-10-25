@@ -1,3 +1,5 @@
+// main.c
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,7 +34,7 @@ void poweroff()
 }
 
 static void init();
-u32 CvtYUV(int n2, int n1, int limit, int palette);
+u32 CvtYUV(int n2, int n1, int limit, uint8_t palette);
 
 void drawdot(void *xfb, GXRModeObj *rmode, float w, float h, float fx, float fy, u32 color)
 {
@@ -95,7 +97,8 @@ int main(int argc, char **argv)
   const int screenH2 = screenH >> 1;
   double centerX = 0, centerY = 0, oldX = 0, oldY = 0;
   int mouseX = 0, mouseY = 0;
-  int limit = INITIAL_LIMIT, palette = 4;
+  int limit = INITIAL_LIMIT;
+  uint8_t palette = 4;
   double zoom = INITIAL_ZOOM;
   bool process = true, cycling = false;
   int counter = 0, cycle = 0, buffer = 0;
@@ -257,7 +260,7 @@ int main(int argc, char **argv)
   return 0;
 }
 
-u32 CvtYUV(int n2, int n1, int limit, int palette)
+u32 CvtYUV(int n2, int n1, int limit, uint8_t palette)
 {
   int y1, cb1, cr1, y2, cb2, cr2, cb, crx;
 

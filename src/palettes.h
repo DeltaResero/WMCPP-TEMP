@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 // Function prototype for Palette (YUV: Y = luminance, U = blue chrominance, V = red chrominance)
-void Palette(int paletteIndex, int iterations, int *y, int *u, int *v);
+void Palette(uint8_t paletteIndex, int iterations, int *y, int *u, int *v);
 
 #endif // PALETTES_H
 

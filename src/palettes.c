@@ -364,7 +364,7 @@
 };
 
 // Implementation of the Palette function
-void Palette(int paletteIndex, int iterations, int *y, int *u, int *v)
+void Palette(uint8_t paletteIndex, int iterations, int *y, int *u, int *v)
 {
   uint8_t (*p)[256][3];  // Pointer to the selected palette
 
