@@ -12,6 +12,7 @@
 // Constants
 const double INITIAL_ZOOM = 0.007;
 const int INITIAL_LIMIT = 200;
+const int LIMIT_MAX = 3200;
 const double MAX_ZOOM_PRECISION = 1e-14;  // Limit for double precision
 
 static u32 *xfb[2] = { NULL, NULL };
@@ -223,7 +224,7 @@ int main(int argc, char **argv)
 
       if (wd->btns_h & WPAD_BUTTON_1)
       {
-        limit <<= 1;
+        limit = (limit < LIMIT_MAX) ? (limit << 1) : LIMIT_MAX;
         process = true;
       }
 
