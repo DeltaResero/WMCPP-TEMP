@@ -212,7 +212,7 @@ int main(int argc, char **argv)
 
       if (wd->btns_d & WPAD_BUTTON_DOWN)
       {
-        cycling ^= 1;
+        cycling = !cycling;
       }
 
       if (wd->btns_h & WPAD_BUTTON_2)
